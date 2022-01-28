@@ -9,6 +9,7 @@ from astroquery.gaia import Gaia
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
+import numpy as np
 
 Gaia.ROW_LIMIT = -1 #no limit on rows in gaia data
 Gaia.MAIN_GAIA_TABLE = "gaiaedr3.gaia_source" # Select early Data Release 3
@@ -20,9 +21,13 @@ r = Gaia.query_object_async(coordinate=coord, width=width, height=height) #query
 
 bp_rp = r['bp_rp'].data
 M_g = r['phot_g_mean_mag'].data
+Par = r['parallax'].data
+d = 1/Par
+D = d*1000
+M_G = M_g - 5*np.log10(D/10)
 
-plt.figure()
+
 plt.xlabel('bp-rp')
 plt.ylabel('M_g')
-plt.scatter(bp_rp,M_g)
-
+plt.scatter(bp_rp,M_G,s=.5)
+plt.ylim(15, -10)
