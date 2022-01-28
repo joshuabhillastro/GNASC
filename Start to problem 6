@@ -1,0 +1,17 @@
+import math as ma
+import numpy as np
+import matplotlib.pyplot as plt
+
+a = float(7.56578E-15) #Radiation density constant [erg cm^-3 K^-4]
+k = float(1.380650E-16) #Boltzman constant [erg K^-1]
+m_u = float(1.6605399E-24) # atomic mass unit [g]
+mu = 1.3 # mean molecular weight. Of the suns composition and fully ionized 
+mu_e = 1.176 # mean molecular weight for e
+mass_electron = float(9.1093897E-28)
+h = float(6.626E-27) 
+T = 10**np.arange(4,10, 1)
+#rho = np.logspace(-8,8,len(T))
+
+ideal_rad = ((mu*m_u*a)/(3*k))*T**3
+#ideal_Degen = (((mu*m_u)/(k*T))**(-3/2))*mu_e*h**2/
+plt.plot(T, ideal_rad)
