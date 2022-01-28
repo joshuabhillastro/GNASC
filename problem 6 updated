@@ -1,0 +1,36 @@
+import math as ma
+import numpy as np
+import matplotlib.pyplot as plt
+
+a = float(7.56578E-15) #Radiation density constant [erg cm^-3 K^-4]
+k = float(1.380650E-16) #Boltzman constant [erg K^-1]
+m_u = float(1.6605388E-24) # atomic mass unit [g]
+mu = 1.3 # mean molecular weight. Of the suns composition and fully ionized 
+mu_e = 1.176 # mean molecular weight for e
+mass_electron = float(9.1093897E-28) #mass of an electron
+h = float(6.626E-27) #planks constant
+
+#just creating K_nr with two equations b and c
+b = (h**2)/(20*mass_electron*(m_u**(5/3)))
+c = 3**(2/3)/ma.pi**(2/3)
+k_nr = b*c
+
+#Temperature in log range from 4-10
+T = 10**np.arange(4,10, 1)
+
+#eqatuin for ideal_radiation and ideal_degenercy 
+ideal_rad = mu*m_u*a*T**3/(3*k)
+ideal_degen = mu_e**(5/2)*k**(3/2)*T**(3/2)/(k_nr**(3/2)*mu**(3/2)*m_u**(3/2))
+
+#Title and axis 
+plt.title("Gas Equations", fontsize=14)
+plt.xlabel('Temperature [K]', fontsize=14)
+plt.ylabel('Density [g cm$^{-3}$]', fontsize=14) 
+
+#Plots of the functions
+plt.plot(T, ideal_rad, color='b',label = "Ideal_Radiation")
+plt.plot(T,ideal_degen,'purple',label = "Ideal_Degenerate")
+
+#rang is the log from -8 to 8, I am not sure how to handle it
+#plt.ylim(-8 , 8)
+plt.legend(loc=0)
