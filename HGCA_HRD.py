@@ -10,17 +10,22 @@ from astropy.table import Table
 from astroquery.gaia import Gaia
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
-source_id_list = ascii.read("/Users/joshhill/Gaia Data/catalog.dat", delimiter = "|")
+#source_id_list = ascii.read("/Users/joshhill/Gaia Data/catalog.dat", delimiter = "|")
 
-source_id_table = Table(source_id_list)
+source_id_list = pd.read_table("/Users/joshhill/Gaia Data/catalog.dat", delimiter = "|", usecols = [1],dtype = np.int64)
+
+source_id_table = Table.from_pandas(source_id_list)
+
+#print(source_id_table)
 
 Gaia.login(user='jhill01',password='Supernova1!')
 
-#source_id_table = Gaia.upload_table(upload_resource=source_id_list,table_name='source id')
-table_source_id = 'user_jhill01.source id'
+send_source_id_table = Gaia.upload_table(upload_resource=source_id_table,table_name='source_ids_2')
+table_source_id = 'user_jhill01.source_ids_2'
 
-query = "select top 120000 source_id,ra,dec,bp_rp,phot_g_mean_mag,parallax from gaiadr2.gaia_source where " 
+query = "select top 115345 source_id,bp_rp,phot_g_mean_mag,parallax from gaiadr2.gaia_source, source_ids_2" 
 job = Gaia.launch_job(query=query)
 
 r = job.get_results()
