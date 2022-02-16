@@ -41,7 +41,10 @@ D = d*1000
 M_G = M_g - 5*np.log10(D/10)
 
 
-plt.xlabel('Distance')
-plt.ylabel('Apperent Mag')
-plt.scatter(np.log10(D),np.log10(M_g),s=.5)
-plt.ylim(15, -10)
+h = plt.hist2d(np.log10(D), M_g, bins=300, cmin=2, range = [[0,6],[0,15]], norm=colors.PowerNorm(0.5), zorder=0.5)
+plt.scatter(np.log10(D),M_g,s=.5, color='k', zorder=0)
+plt.xlabel('Parallax')
+plt.ylabel('Apparent Magnitude')
+cb = plt.colorbar(h[3], ax=plt.subplot(), pad=0.02)
+cb.set_label('Stellar Density')
+
