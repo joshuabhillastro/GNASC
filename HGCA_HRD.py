@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/joshhill/opt/bin python3
 # -*- coding: utf-8 -*-
 """
 Created on Tue Feb  1 15:35:52 2022
@@ -9,9 +9,11 @@ Created on Tue Feb  1 15:35:52 2022
 from astropy.table import Table
 from astroquery.gaia import Gaia
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
+from matplotlib import colors
 import pandas as pd
 
+plt.style.use('default')
 #source_id_list = ascii.read("/Users/joshhill/Gaia Data/catalog.dat", delimiter = "|")
 
 source_id_list = pd.read_table("/Users/joshhill/Gaia Data/catalog.dat", delimiter = "|", usecols = [1],dtype = np.int64)
@@ -39,8 +41,14 @@ d = 1/Par
 D = d*1000
 M_G = M_g - 5*np.log10(D/10)
 
-
+h = plt.hist2d(bp_rp, M_G, bins=300, cmin=2, range = [[-4,8],[-10,15]], norm=colors.PowerNorm(0.5), zorder=0.5)
+plt.scatter(bp_rp,M_G,s=.5, color='k', zorder=0)
+plt.ylim(15,-10)
 plt.xlabel('bp-rp')
 plt.ylabel('M_g')
-plt.scatter(bp_rp,M_G,s=.5)
-plt.ylim(15, -10)
+cb = plt.colorbar(h[3], ax=plt.subplot(), pad=0.02)
+cb.set_label('Stellar Density')
+
+
+
+
