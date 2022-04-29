@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 14 18:16:07 2022
+Created on Mon Apr 25 17:47:42 2022
 
-@author: joshhill
+@author: marcwhiting
 """
+
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -19,18 +22,27 @@ from sklearn.ensemble import BaggingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import SGDClassifier
 
-
-table = pd.read_csv("/Users/joshhill/Gaia Data/HGCA_Accel.csv", usecols = [1,2,3])
-bp_rpt = table.iloc[:,0]#check to make sure
+#Read in the HGCA table to begin ML training
+table = pd.read_csv("/Users/marcwhiting/Desktop/Anaconda/Planet 9/HGCA_Accel.csv", usecols = [1,2,3])
+bp_rpt = table.iloc[:,0]
 M_gt = table.iloc[:,1]
 part = table.iloc[:,2]
+
+#To get M_Gt, also using the mskt to remove the error given 
 dt = 1/part
 Dt = dt*1000
+mskt = (Dt>0)&(Dt<100000) 
+bp_rpt = bp_rpt[mskt]
+M_gt = M_gt[mskt]
+part = part[mskt]
+dt = dt[mskt]
+Dt = Dt[mskt] 
 M_Gt = M_gt -5*np.log10(Dt/10)
 
-#For now I will use parallax for what the practice lab uses as digits
+
 n_samples = len(part) 
-imshape = part[0].shape #not sure about this line
+imshape = part[0].shape #not sure what this line does
+
 
 n_parms = 2
 data = np.zeros((n_samples,n_parms))
@@ -39,14 +51,16 @@ data [:,0]= np.nan_to_num(M_gt)
 data [:,1]= np.nan_to_num(bp_rpt)
 
 targ = np.zeros(n_samples)
-targ = np.where((M_Gt<4)&(bp_rpt>1.6),1,0)
+targ = np.where((M_Gt>0.0)&(M_Gt<1.0)&(bp_rpt>1.1)&(bp_rpt<1.3),1,0)
 
 
-# choose your classifier. I stuck with the one from the lab, but this is tbd
+
+#classifier = svm.SVC(kernel="poly", degree=5)
+classifier = svm.SVC(gamma = 5)
+
+
 #classifier = BaggingClassifier(KNeighborsClassifier())
-classifier = svm.SVC()
-#classifier = svm.LinearSVC()
-#classifier = SGDClassifier()
+#I KEPT Bagging in for now, Accuracy is comparable, perhaps find a way to adjust
 
 
 # split into training and test sets
@@ -55,35 +69,24 @@ X_train, X_test, y_train, y_test = train_test_split(data[:], targ[:],
 n_train = len(y_train)
 n_test = len(y_test)
 
-
-
-#EDR3 source ID
-query = ("select top 31123 "
-                      "solution_id,astrometric_n_obs_al,astrometric_gof_al,astrometric_primary_flag,"
-                      "astrometric_excess_noise,phot_g_mean_mag,parallax_error,parallax_over_error,"
+#30704
+#31123 
+query = ("select top 30704 "
                       "bp_rp,phot_g_mean_mag,parallax, "
                       "duplicated_source "
-                      "from gaiaedr3.gaia_source where parallax > 1 order by random_index")
+                      "from gaiaedr3.gaia_source where parallax_over_error >= 10 AND b > 20 order by random_index")
 job = Gaia.launch_job(query=query)
 r = job.get_results()
-
-#X train will be things like (parallax, error, color, the various flags, A-Goff, etc)
-astrometic_obs = r['astrometric_n_obs_al'].data #Note that some observations may be strongly downweighted (see astrometric_n_bad_obs_al)
-a_gof = r['astrometric_gof_al'].data #Goodness of fit statistic of model wrt along-scan observations
-astrometic_flag = r['astrometric_primary_flag'].data ##Flag indicating if this source was used as a primary source (true) or secondary source (false)
-astrometic_noise = r['astrometric_excess_noise'].data #This is the excess noise 𝜖𝑖 of the source. It measures the disagreement, expressed as an angle, between the observations of a source and the best-fitting standard astrometric model 
-g_mean_mag = r['phot_g_mean_mag'].data #Mean magnitude in the G band.
-parallax_error = r['parallax_error'].data
-parallax_over_error = r['parallax_over_error'].data
-
 
 #Creating M_G to use with ML
 bp_rp = r['bp_rp'].data
 M_g = r['phot_g_mean_mag'].data
 Par = r['parallax'].data
 d = 1/Par
-D = d*1000
+D = d*1000 
 M_G = M_g - 5*np.log10(D/10)
+
+
 
 data1 = np.zeros((n_samples,n_parms))
 #data1 [:,0]= np.nan_to_num(Par)
@@ -91,13 +94,18 @@ data1 [:,0]= np.nan_to_num(M_G)
 data1 [:,1]= np.nan_to_num(bp_rp)
 
 
-
 X_train1, X_test1, y_train1, y_test1 = train_test_split(data[:], targ[:],
                                                     test_size=0.5,shuffle=True)
 classifier.fit(X_train, y_train)
-test = classifier.predict(data1[15561:,:])
-#test = classifier.predict(X_test1)
+#15561
+#15352
+test = classifier.predict(data1[15352:,:])
 print(np.sum(targ==1))
+
+#To see what we got right more easily
+print('number in test set:',len(y_test1))
+right=np.sum(y_test1==test)
+print('number correctly classified:',right)
 
 
 msk = y_test!=test
@@ -110,8 +118,9 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm,
 disp.plot()
 plt.show()
 
-#now create a CMD
 
+
+#now create a CMD
 h = plt.hist2d(bp_rp, M_G, bins=300, cmin = 2,  range = [[-4,8],[-3,20]],
                                    norm=colors.PowerNorm(0.5), zorder=2.5)
 plt.scatter(bp_rp,M_G,s=.5, color='k', zorder=0)
