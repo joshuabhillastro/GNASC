@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May  6 13:39:41 2022
+
+@author: marcwhiting
+"""
+
+
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+import numpy as np
+from astroquery.gaia import Gaia
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import pandas as pd
+from sklearn import svm
+from sklearn.ensemble import RandomForestRegressor as rndfor 
+import matplotlib.pyplot as plt 
+from matplotlib import colors
+import pandas as pd
+import sys
+#sys.exit("Terminate")
+
+dft = pd.read_csv("/Users/marcwhiting/hgca.csv")
+
+#From the email
+nstacks = 7
+data = np.column_stack((dft.pmra**2+dft.pmdec**2,dft.pmra_error**2+dft.pmdec_error**2,dft.parallax, dft.gmag, 
+                            dft.parallax_over_error,dft.astrometric_excess_noise_sig, dft.astrometric_gof_al,))
+
+
+msk = np.isfinite(data[:,0])  # get rid of infinities/nans
+for i in range(1,nstacks):
+    msk &= np.isfinite(data[:,i])
+    dfnew = dft.iloc[msk]
+    data = data[msk]
+    data = (data-np.mean(data,axis=0))/np.var(data,axis=0)
+
+targ = np.log10(dft.chi2acc)
+regressor = rndfor(n_estimators=100)
+
+
+
+
+
+ntrain = len(data)//2
+X_test = len(data).slice(0,half_length)   
+
+X_train = data[:ntrain]
+y_train = targ[:ntrain]
+
+
+res = regressor.fit(X_train, y_train)
+predtrain = regressor.predict(X_train)
+predtest = regressor.predict(X_test)
+
+
+h_train = plt.hist2d(np.log10(predtrain),np.log10(y_train), bins=300, cmin=2, range = [[-3,.5],[-4,1]], norm=colors.PowerNorm(0.5), zorder=0.5)
+plt.scatter(np.log10(predtrain),np.log10(y_train),s=.5, color='k', zorder=0)
+plt.xlabel('predtrain')
+plt.ylabel('y_train')
+cb = plt.colorbar(h_train[3], ax=plt.subplot(), pad=0.02)
+
+h_test = plt.hist2d(np.log10(predtest),np.log10(y_test), bins=300, cmin=2, range = [[-3,.5],[-4,1]], norm=colors.PowerNorm(0.5), zorder=0.5)
+plt.scatter(np.log10(predtest),np.log10(y_train),s=.5, color='k', zorder=0)
+plt.xlabel('predtrain')
+plt.ylabel('y_train')
+cb = plt.colorbar(h_test[3], ax=plt.subplot(), pad=0.02)
+
+
