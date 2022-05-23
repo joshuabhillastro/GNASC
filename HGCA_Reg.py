@@ -12,7 +12,9 @@ from astroquery.gaia import Gaia
 from sklearn.datasets import make_classification
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.ensemble import RandomForestRegressor as rndfor 
+from matplotlib import colors
 import pandas as pd
+import sys
 
 dft = pd.read_csv("/Users/joshhill/Gaia Codes/hgca.csv")
 
@@ -31,14 +33,16 @@ gmag = dft.gmag.to_numpy()
 chi2 = dft.chi2acc.to_numpy()
 paroe = dft.parallax_over_error.to_numpy()
 
+
 #number of samples 
 n_samples = len(par)
 imshape = par[0].shape
 
 #data to train on
-nstacks = 7
-data = np.column_stack((pmra**2+pmdec**2,pmra_e**2+pmdec_e**2,par, gmag, 
+
+data = np.column_stack((np.sqrt(pmra**2+pmdec**2),np.sqrt(pmra_e**2+pmdec_e**2),par, gmag, 
                             paroe, a_en, a_gof,))
+nstacks = data.shape[-1]
 
 msk = np.isfinite(data[:,0])  # get rid of infinities/nans
 for i in range(1,nstacks):
@@ -47,7 +51,7 @@ dfnew = dft.iloc[msk]
 data = data[msk]
 data = (data-np.mean(data,axis=0))/np.var(data,axis=0)
 
-targ = np.log10(chi2) #I have no idea what to put here
+targ = np.log10(chi2) 
 #targ = data 
 
 regressor = rndfor(n_estimators=100)
@@ -62,15 +66,34 @@ res = regressor.fit(X_train, y_train)
 predtrain = regressor.predict(X_train)
 predtest = regressor.predict(X_test)
 
+thrval = 250
+accval = 10
+chi2_test = 10**y_test
+chi2accpredicted = 10**predtest
+groundtrupos = np.sum((chi2_test>=accval))
+groundtruneg = np.sum((chi2_test<accval))
+trupos = np.sum((chi2_test>=accval)&(chi2accpredicted>=thrval))
+obspos = np.sum((chi2accpredicted>=thrval))
+print(groundtrupos)
+print(groundtruneg)
+print(trupos)
+print(obspos)
+print(trupos/obspos)
+
+sys.exit()
 
 #plot
 fig = plt.figure(figsize = (10,10))
+#h = plt.hist2d(predtrain,y_train, bins = 300, cmin = 2, range [[-5,1],[-4,1]], norm = colors.PowerNorm(0.5))
 plt.subplot(2,1,1)
-plt.scatter(np.log10(predtrain),np.log10(y_train), s =.5, color = 'blue', label = 'training')
+plt.scatter(predtrain,y_train, s =.5, color = 'blue', label = 'training')
 plt.xlabel('predicted training')
 plt.ylabel('actual training')
+#cb = plt.colorbar(h[3],ax = plt.subplot(), pad = 0.02)
 plt.subplot(2,1,2)
-plt.scatter(np.log10(predtest), np.log10(y_test), s = .5, color = 'r', label = 'testing')
+#h = plt.hist2d(predtest,y_test, bins = 300, cmin = 2, range [[-3.5,0.5],[-4,1]], norm = colors.PowerNorm(0.5))
+plt.scatter(predtest, y_test, s = .5, color = 'r', label = 'testing')
 plt.xlabel('predicted testing')
 plt.ylabel('actual testing')
+#cb = plt.colorbar(h[3],ax = plt.subplot(), pad = 0.02)
 
