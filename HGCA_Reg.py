@@ -80,7 +80,7 @@ print(trupos)
 print(obspos)
 print(trupos/obspos)
 
-sys.exit()
+#sys.exit()
 
 #plot
 fig = plt.figure(figsize = (10,10))

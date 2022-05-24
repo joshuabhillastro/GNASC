@@ -47,8 +47,12 @@ data = (data-np.mean(data,axis=0))/np.var(data,axis=0)
 
 #print(len(df.index))
 
+#pmx = np.sqrt((dfx.pmra)**2 + (dfx.pmdec)**2)
+#pm = np.sqrt(df.pmra**2+df.pmdec**2) 
+pm = np.sqrt((dfx.pmra - df.pmra)**2 + (dfx.pmdec - df.pmdec)**2)
+
 #targ = np.log10(chi2) #how to subtract pmra and pmdec from both catalogs?
-targ = np.column_stack((dfx.pmra - df.pmra,dfx.pmdec - df.pmdec,))
+targ = np.column_stack((dfx.pmra - df.pmra,dfx.pmdec - df.pmdec,pm,))
 
 regressor = rndfor(n_estimators=100)
 
