@@ -34,11 +34,17 @@ job = Gaia.launch_job(query=query)
 
 r = job.get_results()
 
-bp_rp = r['bp_rp'].data
-M_g = r['phot_g_mean_mag'].data
 Par = r['parallax'].data
 d = 1/Par
 D = d*1000
+msk = (D>0)&(D<100000) 
+bp_rp = r['bp_rp'].data
+bp_rp = bp_rp[msk]
+M_g = r['phot_g_mean_mag'].data
+M_g = M_g[msk]
+Par = Par[msk]
+d = d[msk]
+D = D[msk] 
 M_G = M_g - 5*np.log10(D/10)
 
 h = plt.hist2d(bp_rp, M_G, bins=300, cmin=2, range = [[-4,8],[-10,15]], norm=colors.PowerNorm(0.5), zorder=0.5)
@@ -48,6 +54,7 @@ plt.xlabel('bp-rp')
 plt.ylabel('M_g')
 cb = plt.colorbar(h[3], ax=plt.subplot(), pad=0.02)
 cb.set_label('Stellar Density')
+plt.savefig("HGCA_HRD_Updated.pdf", format="pdf", bbox_inches="tight")
 
 
 
