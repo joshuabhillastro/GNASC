@@ -66,10 +66,8 @@ pmrnd = np.sqrt(dfrndx.pmra**2+dfrndx.pmdec**2)
 pmrnd3 = np.sqrt(dfrnd3.pmra**2+dfrnd3.pmdec**2) 
 pm = np.sqrt(dfx.pmra**2+dfx.pmdec**2)
 
-data = np.column_stack((dfx.pmra-df2.pmra,dfx.pmdec-df2.pmdec,dfx.astrometric_gof_al,
-                            dfx.parallax,dfx.parallax_over_error,dfx.pmra,dfx.pmdec,pm),)
-datarnd = np.column_stack((dfrndx.pmra-dfrnd2.pmra,dfrndx.pmdec-dfrnd2.pmdec,dfrndx.astrometric_gof_al,
-                            dfrndx.parallax,dfrndx.parallax_over_error,dfrndx.pmra,dfrndx.pmdec,pmrnd),)# feed into predictor
+data = np.column_stack((np.sqrt(dfx.pmra**2+dfx.pmdec**2),np.sqrt(dfx.pmra_error**2+dfx.pmdec_error**2),np.sqrt((df2.pmdec-dfx.pmdec)**2+(df2.pmra-dfx.pmra)**2),dfx.pmra, dfx.pmdec,dfx.pmra_error, dfx.pmdec_error,df2.pmra-dfx.pmra,df2.pmdec-dfx.pmdec, dfx.ruwe,dfx.parallax, dfx.parallax_over_error,dfx.phot_g_mean_mag,dfx.bp_rp,dfx.astrometric_excess_noise_sig,dfx.astrometric_gof_al),)
+datarnd = np.column_stack((np.sqrt(dfrndx.pmra**2+dfrndx.pmdec**2),np.sqrt(dfrndx.pmra_error**2+dfrndx.pmdec_error**2),np.sqrt((dfrnd2.pmdec-dfrndx.pmdec)**2+(dfrnd2.pmra-dfrndx.pmra)**2),dfrndx.pmra, dfrndx.pmdec,dfrndx.pmra_error, dfrndx.pmdec_error,dfrnd2.pmra-dfrndx.pmra,dfrnd2.pmdec-dfrndx.pmdec, dfrndx.ruwe,dfrndx.parallax, dfrndx.parallax_over_error,dfrndx.phot_g_mean_mag,dfrndx.bp_rp,dfrndx.astrometric_excess_noise_sig,dfrndx.astrometric_gof_al))# feed into predictor
 nstacks = datarnd.shape[-1]
 
 msk = np.isfinite(datarnd[:,0])  # get rid of infinities/nans
@@ -77,7 +75,7 @@ for i in range(1,nstacks):
         msk &= np.isfinite(datarnd[:,i]) 
 dfrndx = dfrndx.iloc[msk].copy()
 datarnd = datarnd[msk]
-datarnd = (datarnd-np.mean(datarnd,axis=0))/np.var(datarnd,axis=0)
+#datarnd = (datarnd-np.mean(datarnd,axis=0))/np.std(datarnd,axis=0)
 
 nstacks = data.shape[-1]
 
@@ -86,13 +84,13 @@ for i in range(1,nstacks):
         msk &= np.isfinite(data[:,i]) 
 dfx = dfx.iloc[msk].copy()
 data = data[msk]
-data = (data-np.mean(data,axis=0))/np.var(data,axis=0)
+#data = (data-np.mean(data,axis=0))/np.std(data,axis=0)
 
 
 targ = np.log10(dfx.chi2acc) #how to subtract pmra and pmdec from both catalogs?
 #pm does not seem to make a difference
 
-regressor = rndfor(n_estimators=100)
+regressor = rndfor(n_estimators=100, random_state = np.random.seed(777134134))
 
 #X_train, X_test, y_train, y_test = train_test_split(data[:], targ[:],
 #                                                   test_size=0.5,shuffle=True)
@@ -107,15 +105,20 @@ n_train = len(y_train)
 
 res = regressor.fit(X_train, y_train)
 
-predtrain = regressor.predict(X_train)
+predtrain = regressor.predict(X_train)#waas this looking at linear drift and not acc?
 #predtest = regressor.predict(X_test)
 predrnd = regressor.predict(datarnd) #random catalog
 
 #sys.exit()
 #do a np.isin??
-msk = np.where(10**predrnd > 500) #chi2acc look at different vals 
+msk = np.where(10**predrnd > 28.75) #chi2acc look at different vals 
 dfrndacc = dfrnd3.iloc[msk].copy()
 srclis = dfrndacc['source_id'].to_list()
+chi2acc = 10**predrnd[msk]
+#2800 number of stars above 28.75 
+err = np.sqrt(len(srclis))
+print("pisson err", err)
+
 #chi2acc = 10**4 number of stars = 0
 #chi2acc = 5000 number of stars = 0
 #chi2acc = 1000 number of stars = 15
@@ -129,11 +132,34 @@ srclis = dfrndacc['source_id'].to_list()
 #chi2acc = 11.8 number of stars = 56339 fluctuates around 56000
 print('numbers of stars: ', len(srclis))
 #sys.exit()
-print(srclis)
+#print(srclis)
+#xmach with known accelerating stars
+#think about training nss catalog then test on our accelerating catalog?
+#top acc look at the fifty stars in simbad!! aladin lite look of anonomolis things and streaks in the stars
+#dss2/blue do this on chrome
+#make sure to query starting with gaia edr3, or using coordinates (ra, dec)
+#investigate see if there is anything wired!!
+#look and see if there is anything unusual about the surrounding area (like binaries)
+#if high proper motion use wiseview nasa byw.tools 
+#build table in latex and in a readable format for the journal in python 
+#limit b and l in galactic coordinates
+#look for an orbital period of around 1 year
+#look at stars first then use the data that ben gives you depending on what he gives
+#sys.exit()
+
+#for i, row in dfrndacc.iterrows():
+    #print(row['source_id'], 10**predrnd[i])
+#    chi2acc = (row['source_id'], 10**predrnd[i])
+
+dftable = pd.DataFrame(srclis,chi2acc)
+dftable.to_csv('/Users/joshhill/ourcatalog1.csv')
+#sort by chi2
 
 
-for i, row in dfrndacc.iterrows():
-    print(row['source_id'], 10**predrnd[i])
+
+#data5 = ([dfrndacc.source_id], [10**predrnd[i]])
+
+#get to csv from pandas 
 sys.exit()
 
 
