@@ -34,9 +34,12 @@ dfrnd3 = pd.read_csv("/Users/joshhill/edr3rnd.csv")
 
 #sys.exit()
 
+np.random.seed(777134134)
+
 msk = np.isin(df3.source_id,df2.dr3_source_id) # find which sources are in dr2 and edr3
 dfx = df3[msk].copy() # this has the cross matched sources
 print('    edr3 w/dr2 srcs identified:',len(dfx.index))
+
 
 # now line up the dataframes, so they are sorted by edr3 source_id (and have reset indices)
 dfx.sort_values(by='source_id',inplace = True)
@@ -45,6 +48,7 @@ df2.sort_values(by='dr3_source_id',inplace=True)
 df2.reset_index(drop=True,inplace=True)
 did = (dfx.source_id - df2.dr3_source_id)
 print('dr2/edr3 id cross check, 0 is good:',np.sum(did!=0)) 
+
 
 msk = np.isin(dfrnd3.source_id,dfrnd2.dr3_source_id) # find which sources are in dr2 and edr3
 dfrndx = dfrnd3[msk].copy() # this has the cross matched sources
@@ -65,9 +69,24 @@ imshape = dfrndx.parallax[0].shape
 pmrnd = np.sqrt(dfrndx.pmra**2+dfrndx.pmdec**2) 
 pmrnd3 = np.sqrt(dfrnd3.pmra**2+dfrnd3.pmdec**2) 
 pm = np.sqrt(dfx.pmra**2+dfx.pmdec**2)
-
-data = np.column_stack((np.sqrt(dfx.pmra**2+dfx.pmdec**2),np.sqrt(dfx.pmra_error**2+dfx.pmdec_error**2),np.sqrt((df2.pmdec-dfx.pmdec)**2+(df2.pmra-dfx.pmra)**2),dfx.pmra, dfx.pmdec,dfx.pmra_error, dfx.pmdec_error,df2.pmra-dfx.pmra,df2.pmdec-dfx.pmdec, dfx.ruwe,dfx.parallax, dfx.parallax_over_error,dfx.phot_g_mean_mag,dfx.bp_rp,dfx.astrometric_excess_noise_sig,dfx.astrometric_gof_al),)
-datarnd = np.column_stack((np.sqrt(dfrndx.pmra**2+dfrndx.pmdec**2),np.sqrt(dfrndx.pmra_error**2+dfrndx.pmdec_error**2),np.sqrt((dfrnd2.pmdec-dfrndx.pmdec)**2+(dfrnd2.pmra-dfrndx.pmra)**2),dfrndx.pmra, dfrndx.pmdec,dfrndx.pmra_error, dfrndx.pmdec_error,dfrnd2.pmra-dfrndx.pmra,dfrnd2.pmdec-dfrndx.pmdec, dfrndx.ruwe,dfrndx.parallax, dfrndx.parallax_over_error,dfrndx.phot_g_mean_mag,dfrndx.bp_rp,dfrndx.astrometric_excess_noise_sig,dfrndx.astrometric_gof_al))# feed into predictor
+dfx = dfx.sample(frac=1)
+print(dfx['source_id'].iloc[0])
+data = np.column_stack((np.sqrt(dfx.pmra**2+dfx.pmdec**2),
+                        np.sqrt(dfx.pmra_error**2+dfx.pmdec_error**2),
+                        np.sqrt((df2.pmdec-dfx.pmdec)**2+(df2.pmra-dfx.pmra)**2),
+                        dfx.pmra, dfx.pmdec,dfx.pmra_error,
+                        dfx.pmdec_error,df2.pmra-dfx.pmra,df2.pmdec-dfx.pmdec, 
+                        dfx.ruwe,dfx.parallax, dfx.parallax_over_error,dfx.phot_g_mean_mag,
+                        dfx.bp_rp,dfx.astrometric_excess_noise_sig,dfx.astrometric_gof_al),)
+#dfrndx = dfrndx.sample(frac=1)
+datarnd = np.column_stack((np.sqrt(dfrndx.pmra**2+dfrndx.pmdec**2),
+                           np.sqrt(dfrndx.pmra_error**2+dfrndx.pmdec_error**2),
+                           np.sqrt((dfrnd2.pmdec-dfrndx.pmdec)**2+(dfrnd2.pmra-dfrndx.pmra)**2),
+                           dfrndx.pmra, dfrndx.pmdec,dfrndx.pmra_error, dfrndx.pmdec_error,
+                           dfrnd2.pmra-dfrndx.pmra,dfrnd2.pmdec-dfrndx.pmdec, dfrndx.ruwe,
+                           dfrndx.parallax, dfrndx.parallax_over_error,dfrndx.phot_g_mean_mag,
+                           dfrndx.bp_rp,dfrndx.astrometric_excess_noise_sig,
+                           dfrndx.astrometric_gof_al))# feed into predictor
 nstacks = datarnd.shape[-1]
 
 msk = np.isfinite(datarnd[:,0])  # get rid of infinities/nans
@@ -86,31 +105,53 @@ dfx = dfx.iloc[msk].copy()
 data = data[msk]
 #data = (data-np.mean(data,axis=0))/np.std(data,axis=0)
 
+dfrndx = dfrndx[dfrndx.phot_g_mean_mag < 17.5].copy()
+dfrndx.sort_values(by='source_id',inplace = True)
+dfrndx.reset_index(drop=True,inplace=True)
+
+msk = np.isin(dfrndx.source_id,dfx.source_id)
+dfrndx = dfrndx[~msk].copy()
+dfrndx.sort_values(by='source_id',inplace = True)
+dfrndx.reset_index(drop=True,inplace=True)
 
 targ = np.log10(dfx.chi2acc) #how to subtract pmra and pmdec from both catalogs?
 #pm does not seem to make a difference
 
-regressor = rndfor(n_estimators=100, random_state = np.random.seed(777134134))
+regressor = rndfor(n_estimators=150)
 
 #X_train, X_test, y_train, y_test = train_test_split(data[:], targ[:],
 #                                                   test_size=0.5,shuffle=True)
-X_train = data[:]
-y_train = targ[:]
+ndata = len(dfx.index)
+values = dfx.chi2acc
+ntrain = 4*ndata//8; ntest = ndata-ntrain
+print('train set: ', ntrain)
+        
+Xtrain = data[:ntrain]; ytrain = np.log10(values[:ntrain])
+Xtest = data[ntrain:];  ytest = values[ntrain:]
+print('first element in ytrain:', ytrain[0])
+print('last element in Xtrain:', Xtrain[-1,-1])
+#sys.exit()
+#X_train = data[:]
+#y_train = targ[:]
 
 #X_rndtrain = np.column_stack((dfrndx.pmra-dfrnd2.pmra,dfrndx.pmdec-dfrnd2.pmdec,dfrndx.astrometric_excess_noise_sig,dfrndx.astrometric_gof_al,
 #                            dfrndx.parallax,dfrndx.parallax_over_error,dfrndx.pmra,dfrndx.pmdec,pmrnd3))
 
-n_train = len(y_train)
+n_train = len(ytrain)
 #n_test = len(y_test)
 
-res = regressor.fit(X_train, y_train)
+res = regressor.fit(Xtrain, ytrain)
 
-predtrain = regressor.predict(X_train)#waas this looking at linear drift and not acc?
+predtrain = regressor.predict(Xtrain)#waas this looking at linear drift and not acc?
+print(predtrain[0])
+sys.exit()
 #predtest = regressor.predict(X_test)
 predrnd = regressor.predict(datarnd) #random catalog
 
+
+
 #sys.exit()
-#do a np.isin??
+#do a np.where??
 msk = np.where(10**predrnd > 28.75) #chi2acc look at different vals 
 dfrndacc = dfrnd3.iloc[msk].copy()
 srclis = dfrndacc['source_id'].to_list()
@@ -161,6 +202,3 @@ dftable.to_csv('/Users/joshhill/ourcatalog1.csv')
 
 #get to csv from pandas 
 sys.exit()
-
-
-    
