@@ -24,6 +24,34 @@ dfrnd2 = pd.read_csv("/Users/joshhill/dr2rnd.csv")
 dfrnd3 = pd.read_csv("/Users/joshhill/edr3rnd.csv")
 
 
+
+#add a def to correct for the frame rotation
+pmra_cat = dfrnd2['pmra']
+pmdec_cat = dfrnd2['pmdec']
+
+w_x = -.077
+w_y = -.096
+w_z = -.002
+
+
+def frameadjust(pmra,pmdec):
+    deg2rad = np.pi/180
+    a = w_x*np.cos(pmra*deg2rad)*np.sin(pmdec*deg2rad)
+    b = w_y*np.sin(pmra*deg2rad)*np.sin(pmdec*deg2rad)
+    c = w_z*np.cos(pmdec*deg2rad)
+    
+    pmra_true = a+b-c
+        
+    d = w_x*np.sin(pmdec*deg2rad)
+    e = w_y*np.cos(pmdec*deg2rad)
+    
+    
+    pmdec_true = e-d
+    
+    return (pmra_true, pmdec_true)
+
+
+pmra, pmdec = frameadjust(pmra_cat,pmdec_cat)
 #think about a name for the catalog
 #<100 pc or parallax >0.01 from edr3 xmatch w/ dr2 get rid of anything wierd 
 #if mags dont match within a half a mag get rid look at drb example
@@ -63,6 +91,7 @@ did1 = (dfrndx.source_id - dfrnd2.dr3_source_id)
 print('dr2rnd/edr3rnd id cross check, 0 is good:',np.sum(did1!=0)) 
 #sys.exit()
 
+
 #number of samples 
 n_samples = len(dfrndx.parallax)
 imshape = dfrndx.parallax[0].shape
@@ -70,7 +99,7 @@ pmrnd = np.sqrt(dfrndx.pmra**2+dfrndx.pmdec**2)
 pmrnd3 = np.sqrt(dfrnd3.pmra**2+dfrnd3.pmdec**2) 
 pm = np.sqrt(dfx.pmra**2+dfx.pmdec**2)
 dfx = dfx.sample(frac=1)
-print(dfx['source_id'].iloc[0])
+print("souce id 1:", dfx['source_id'].iloc[0])
 data = np.column_stack((np.sqrt(dfx.pmra**2+dfx.pmdec**2),
                         np.sqrt(dfx.pmra_error**2+dfx.pmdec_error**2),
                         np.sqrt((df2.pmdec-dfx.pmdec)**2+(df2.pmra-dfx.pmra)**2),
@@ -142,9 +171,9 @@ n_train = len(ytrain)
 
 res = regressor.fit(Xtrain, ytrain)
 
-predtrain = regressor.predict(Xtrain)#waas this looking at linear drift and not acc?
-print(predtrain[0])
-sys.exit()
+predtrain = regressor.predict(Xtrain) #waas this looking at linear drift and not acc?
+print('predicted',predtrain[0])
+#sys.exit()
 #predtest = regressor.predict(X_test)
 predrnd = regressor.predict(datarnd) #random catalog
 
@@ -192,13 +221,20 @@ print('numbers of stars: ', len(srclis))
     #print(row['source_id'], 10**predrnd[i])
 #    chi2acc = (row['source_id'], 10**predrnd[i])
 
-dftable = pd.DataFrame(srclis,chi2acc)
-dftable.to_csv('/Users/joshhill/ourcatalog1.csv')
+srcchi = [srclis, chi2acc]
+dftable = pd.DataFrame(srcchi).transpose()
+dftable.columns = ["source_id", "chi2accpredicted"]
+dftable.to_csv('/Users/joshhill/ourcatalog3.csv')
 #sort by chi2
-
+dftable.sort_values(by = 'chi2accpredicted', ascending = False, ignore_index = True, inplace = True)
+final = dftable.head(25)
+print(final)
 
 
 #data5 = ([dfrndacc.source_id], [10**predrnd[i]])
 
 #get to csv from pandas 
 sys.exit()
+
+
+    
